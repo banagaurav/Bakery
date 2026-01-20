@@ -1,4 +1,4 @@
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 from fastapi import HTTPException, status
 import database_models
 from models import UserCreate, UserUpdate
@@ -11,9 +11,21 @@ class UserService:
         return self.db.query(database_models.User).all()
     
     def get_by_id(self, user_id: int):
-        return self.db.query(database_models.User).filter(
-            database_models.User.id == user_id
-        ).first()
+        return self.db.query(database_models.User)\
+            .filter(database_models.User.id == user_id)\
+            .first()
+    
+    def get_with_relations(self, user_id: int):
+        """Get user with all related data"""
+        user = self.db.query(database_models.User)\
+            .options(
+                selectinload(database_models.User.sales_rates),
+                selectinload(database_models.User.stock_assignments)
+            )\
+            .filter(database_models.User.id == user_id)\
+            .first()
+        
+        return user
     
     def create(self, user_data: UserCreate):
         user = database_models.User(**user_data.model_dump())

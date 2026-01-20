@@ -1,4 +1,5 @@
 from sqlalchemy.orm import Session
+from datetime import date
 import database_models
 from models import WorkingDayCreate, WorkingDayUpdate
 
@@ -10,11 +11,22 @@ class WorkingDayService:
         return self.db.query(database_models.WorkingDay).all()
     
     def get_by_id(self, day_id: int):
-        return self.db.query(database_models.WorkingDay).filter(
-            database_models.WorkingDay.id == day_id
-        ).first()
+        return self.db.query(database_models.WorkingDay)\
+            .filter(database_models.WorkingDay.id == day_id)\
+            .first()
+    
+    def get_by_date(self, day_date: date):
+        """Get working day by specific date"""
+        return self.db.query(database_models.WorkingDay)\
+            .filter(database_models.WorkingDay.date == day_date)\
+            .first()
     
     def create(self, day_data: WorkingDayCreate):
+        # Check if date already exists
+        existing = self.get_by_date(day_data.date)
+        if existing:
+            return None  # Or raise exception
+        
         day = database_models.WorkingDay(**day_data.model_dump())
         self.db.add(day)
         self.db.commit()
@@ -42,3 +54,20 @@ class WorkingDayService:
         self.db.delete(day)
         self.db.commit()
         return True
+    
+    def get_open_days(self):
+        """Get all open working days"""
+        return self.db.query(database_models.WorkingDay)\
+            .filter(database_models.WorkingDay.status == "open")\
+            .all()
+    
+    def get_closed_days(self):
+        """Get all closed working days"""
+        return self.db.query(database_models.WorkingDay)\
+            .filter(database_models.WorkingDay.status == "close")\
+            .all()
+    
+    def is_working_day(self, day_date: date):
+        """Check if a specific date is a working day"""
+        day = self.get_by_date(day_date)
+        return day.is_working if day else False
