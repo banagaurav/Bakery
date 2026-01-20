@@ -8,6 +8,7 @@ class SalesRateService:
     
     def get_all(self):
         rates = self.db.query(database_models.SalesRate)\
+            .filter(database_models.SalesRate.is_active==True)\
             .options(
                 selectinload(database_models.SalesRate.customer),
                 selectinload(database_models.SalesRate.item)
