@@ -81,20 +81,3 @@ class ProductionService:
         .all()
         
         return [dict(r._asdict()) for r in result]
-    
-    def get_production_summary(self, start_date: date = None, end_date: date = None):
-        """Get production summary between dates"""
-        query = self.db.query(
-            database_models.Production.item_id,
-            database_models.Item.name.label('item_name'),
-            database_models.Production.production_date,
-            database_models.Production.quantity
-        )\
-        .join(database_models.Item)
-        
-        if start_date:
-            query = query.filter(database_models.Production.production_date >= start_date)
-        if end_date:
-            query = query.filter(database_models.Production.production_date <= end_date)
-        
-        return [dict(r._asdict()) for r in query.all()]
