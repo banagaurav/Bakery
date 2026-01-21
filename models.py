@@ -88,10 +88,9 @@ class StockAssignmentBase(BaseModel):
     item_id: int
     quantity: int
     assignment_date: date
-    sales_rate_id: int
 
 class StockAssignmentCreate(StockAssignmentBase):
-    pass
+    sales_rate_id: Optional[int] = None 
 
 class StockAssignmentUpdate(BaseModel):
     quantity: Optional[int] = None

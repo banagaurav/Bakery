@@ -1,5 +1,8 @@
 from sqlalchemy.orm import Session, selectinload
+from datetime import datetime
 import database_models
+from sqlalchemy import or_
+from fastapi import HTTPException, status
 from models import StockAssignmentCreate, StockAssignmentUpdate
 
 class StockAssignmentService:
@@ -43,10 +46,63 @@ class StockAssignmentService:
             .first()
     
     def create(self, assignment_data: StockAssignmentCreate):
-        assignment = database_models.StockAssignment(**assignment_data.model_dump())
+        # Check if sales_rate_id was provided
+        sales_rate_id = assignment_data.sales_rate_id
+        
+        # If not provided, find active sales rate
+        if not sales_rate_id:
+            from services.sales_rate_service import SalesRateService
+            rate_service = SalesRateService(self.db)
+            
+            # Get active rate for this customer and item
+            active_rate = rate_service.get_active_rate_for_customer_item(
+                assignment_data.customer_id,
+                assignment_data.item_id
+            )
+            
+            if not active_rate:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"No active sales rate found for customer {assignment_data.customer_id} and item {assignment_data.item_id}"
+                )
+            
+            sales_rate_id = active_rate.id
+        else:
+            # If sales_rate_id was provided, get the rate from it
+            sales_rate = self.db.query(database_models.SalesRate)\
+                .filter(database_models.SalesRate.id == sales_rate_id)\
+                .first()
+            
+            if not sales_rate:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Sales rate with ID {sales_rate_id} not found"
+                )
+            
+            rate = sales_rate.rate
+        
+        # Create the stock assignment
+        assignment_dict = assignment_data.model_dump(exclude={'sales_rate_id'})
+        assignment = database_models.StockAssignment(
+            **assignment_dict,
+            sales_rate_id=sales_rate_id,
+              # Store the rate at assignment time
+        )
+        
         self.db.add(assignment)
         self.db.commit()
         self.db.refresh(assignment)
+        
+        # Load relationships for response
+        assignment = self.db.query(database_models.StockAssignment)\
+            .options(
+                selectinload(database_models.StockAssignment.customer),
+                selectinload(database_models.StockAssignment.item),
+                selectinload(database_models.StockAssignment.sales_rate)
+            )\
+            .filter(database_models.StockAssignment.id == assignment.id)\
+            .first()
+        
         return assignment
     
     def update(self, assignment_id: int, assignment_data: StockAssignmentUpdate):

@@ -1,3 +1,6 @@
+from typing import Optional
+from datetime import datetime 
+from sqlalchemy import and_, or_ 
 from sqlalchemy.orm import Session, selectinload
 import database_models
 from models import SalesRateCreate, SalesRateUpdate
@@ -21,6 +24,25 @@ class SalesRateService:
             rate.item_name = rate.item.name if rate.item else None
         
         return rates
+    
+    def get_active_rate_for_customer_item(self, customer_id: int, item_id: int) -> Optional[database_models.SalesRate]:
+        """Get the currently active sales rate for a customer-item pair"""
+        from sqlalchemy import and_
+        
+        return self.db.query(database_models.SalesRate)\
+            .filter(
+                and_(
+                    database_models.SalesRate.customer_id == customer_id,
+                    database_models.SalesRate.item_id == item_id,
+                    database_models.SalesRate.is_active == True,
+                    database_models.SalesRate.effective_from <= datetime.now().date(),
+                    or_(
+                        database_models.SalesRate.effective_to.is_(None),
+                        database_models.SalesRate.effective_to >= datetime.now().date()
+                    )
+                )
+            )\
+            .first()
     
     def get_by_id(self, rate_id: int):
         rate = self.db.query(database_models.SalesRate)\
