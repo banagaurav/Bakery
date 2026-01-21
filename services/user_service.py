@@ -1,4 +1,5 @@
-from sqlalchemy.orm import Session, selectinload
+# services/user_service.py
+from sqlalchemy.orm import Session
 from fastapi import HTTPException, status
 import database_models
 from models import UserCreate, UserUpdate
@@ -11,23 +12,24 @@ class UserService:
         return self.db.query(database_models.User).all()
     
     def get_by_id(self, user_id: int):
-        return self.db.query(database_models.User)\
-            .filter(database_models.User.id == user_id)\
-            .first()
+        return self.db.query(database_models.User).filter(
+            database_models.User.id == user_id
+        ).first()
     
-    def get_with_relations(self, user_id: int):
-        """Get user with all related data"""
-        user = self.db.query(database_models.User)\
-            .options(
-                selectinload(database_models.User.sales_rates),
-                selectinload(database_models.User.stock_assignments)
-            )\
-            .filter(database_models.User.id == user_id)\
-            .first()
-        
-        return user
+    def get_by_name(self, name: str):
+        return self.db.query(database_models.User).filter(
+            database_models.User.name == name
+        ).first()
     
     def create(self, user_data: UserCreate):
+        # Check if user with same name already exists
+        existing_user = self.get_by_name(user_data.name)
+        if existing_user:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="User with this name already exists"
+            )
+        
         user = database_models.User(**user_data.model_dump())
         self.db.add(user)
         self.db.commit()
@@ -40,6 +42,16 @@ class UserService:
             return None
         
         update_data = user_data.model_dump(exclude_unset=True)
+        
+        # If updating name, check if it's already taken
+        if "name" in update_data and update_data["name"] != user.name:
+            existing_user = self.get_by_name(update_data["name"])
+            if existing_user:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="User with this name already exists"
+                )
+        
         for field, value in update_data.items():
             setattr(user, field, value)
         

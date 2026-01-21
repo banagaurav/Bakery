@@ -1,4 +1,4 @@
-from pydantic import BaseModel, ConfigDict, computed_field,field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, computed_field,field_validator, model_validator, ConfigDict, EmailStr
 from typing import Optional, List
 from datetime import date, datetime
 import enum
@@ -177,3 +177,18 @@ class ItemWithRelations(Item):  # Changed from ProductWithRelations to ItemWithR
     sales_rates: List[SalesRate] = []
     stock_assignments: List[StockAssignment] = []
     productions: List[Production] = []
+
+
+# ========== Authentication Schemas ==========
+class Token(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
+    user: User  # Return user info with token
+
+class TokenData(BaseModel):
+    user_id: Optional[int] = None
+    role: Optional[UserRole] = None
+
+# ========== Login Schema (without password) ==========
+class UserLogin(BaseModel):
+    name: str    # User identifies themselves by ID
