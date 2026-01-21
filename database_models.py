@@ -44,10 +44,13 @@ class SalesRate(Base):
     effective_to = Column(Date, nullable=True)
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())  # NEW
+    updated_by = Column(Integer, ForeignKey("users.id"), nullable=True)  # NEW
     
     # Relationships
     customer = relationship("User", foreign_keys=[customer_id])
     item = relationship("Item")
+    updated_by_user = relationship("User", foreign_keys=[updated_by]) 
 
 # Stock Assignments Table
 class StockAssignment(Base):

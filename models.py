@@ -55,6 +55,7 @@ class SalesRateBase(BaseModel):
     effective_from: date
     effective_to: Optional[date] = None
     is_active: bool = True
+    updated_by: Optional[int] = None 
 
 class SalesRateCreate(SalesRateBase):
     @model_validator(mode='after')
@@ -73,8 +74,10 @@ class SalesRate(SalesRateBase):
     
     id: int
     created_at: datetime
+    updated_at: Optional[datetime] = None
     customer: Optional[User] = None  # ADDED
     item: Optional[Item] = None      # ADDED
+    updated_by_user: Optional[User] = None  # ADDED
 
 class SalesRateNonNested(BaseModel): #for stockAssignment 
     model_config = ConfigDict(from_attributes=True)
@@ -85,6 +88,8 @@ class SalesRateNonNested(BaseModel): #for stockAssignment
     effective_to: Optional[date] = None
     is_active: bool
     created_at: datetime
+    updated_at: Optional[datetime] = None  # ADDED
+    updated_by: Optional[int] = None  # ADDED
 
 # ========== Stock Assignment Schemas ==========
 class StockAssignmentBase(BaseModel):
