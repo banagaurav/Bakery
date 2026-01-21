@@ -113,6 +113,7 @@ class Production(ProductionBase):
     
     id: int
     created_at: datetime
+    item: Optional[Item] = None  # Add this
 
 # ========== Working Day Schemas ==========
 class WorkingDayBase(BaseModel):

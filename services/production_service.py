@@ -7,15 +7,9 @@ class ProductionService:
         self.db = db
     
     def get_all(self):
-        productions = self.db.query(database_models.Production)\
+        return self.db.query(database_models.Production)\
             .options(selectinload(database_models.Production.item))\
             .all()
-        
-        # Add item name
-        for production in productions:
-            production.item_name = production.item.name if production.item else None
-        
-        return productions
     
     def get_by_id(self, production_id: int):
         production = self.db.query(database_models.Production)\

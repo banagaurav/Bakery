@@ -3,6 +3,7 @@ from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 import enum
 from database import Base
+from sqlalchemy.ext.hybrid import hybrid_property
 
 # Enum for User Role
 class UserRole(str, enum.Enum):
@@ -77,6 +78,10 @@ class Production(Base):
     
     # Relationship
     item = relationship("Item")
+
+    # @hybrid_property
+    # def item_name(self):
+    #     return self.item.name if self.item else None
 
 # Working Days Table
 class WorkingDay(Base):
