@@ -69,8 +69,8 @@ class SalesRate(SalesRateBase):
     
     id: int
     created_at: datetime
-    customer_name: Optional[str] = None  # ADDED
-    item_name: Optional[str] = None      # ADDED
+    customer: Optional[User] = None  # ADDED
+    item: Optional[Item] = None      # ADDED
 
 # ========== Stock Assignment Schemas ==========
 class StockAssignmentBase(BaseModel):
