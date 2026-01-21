@@ -22,13 +22,6 @@ class ProductionService:
         
         return production
     
-    def get_with_relations(self, production_id: int):
-        """Get production with full item object"""
-        return self.db.query(database_models.Production)\
-            .options(selectinload(database_models.Production.item))\
-            .filter(database_models.Production.id == production_id)\
-            .first()
-    
     def create(self, production_data: ProductionCreate):
         production = database_models.Production(**production_data.model_dump())
         self.db.add(production)
@@ -60,24 +53,3 @@ class ProductionService:
         self.db.delete(production)
         self.db.commit()
         return True
-    
-    def get_by_item(self, item_id: int):
-        """Get all production records for a specific item"""
-        productions = self.db.query(database_models.Production)\
-            .filter(database_models.Production.item_id == item_id)\
-            .all()
-        
-        return productions
-    
-    def get_total_production_by_item(self):
-        """Get total production quantity by item"""
-        result = self.db.query(
-            database_models.Production.item_id,
-            database_models.Item.name.label('item_name'),
-            database_models.Production.production_date,
-            database_models.Production.quantity
-        )\
-        .join(database_models.Item)\
-        .all()
-        
-        return [dict(r._asdict()) for r in result]
