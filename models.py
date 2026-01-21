@@ -72,13 +72,23 @@ class SalesRate(SalesRateBase):
     customer: Optional[User] = None  # ADDED
     item: Optional[Item] = None      # ADDED
 
+class SalesRateNonNested(BaseModel): #for stockAssignment 
+    model_config = ConfigDict(from_attributes=True)
+    
+    id: int
+    rate: float
+    effective_from: date
+    effective_to: Optional[date] = None
+    is_active: bool
+    created_at: datetime
+
 # ========== Stock Assignment Schemas ==========
 class StockAssignmentBase(BaseModel):
     customer_id: int
     item_id: int
     quantity: int
     assignment_date: date
-    rate: float
+    sales_rate_id: int
 
 class StockAssignmentCreate(StockAssignmentBase):
     pass
@@ -92,6 +102,10 @@ class StockAssignment(StockAssignmentBase):
     
     id: int
     created_at: datetime
+    customer: Optional[User] = None  # ADDED
+    item: Optional[Item] = None      # ADDED
+    sales_rate: Optional[SalesRateNonNested] = None
+
 
 # ========== Production Schemas ==========
 class ProductionBase(BaseModel):

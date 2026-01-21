@@ -7,19 +7,15 @@ class StockAssignmentService:
         self.db = db
     
     def get_all(self):
-        assignments = self.db.query(database_models.StockAssignment)\
+        # Only load what's needed, avoid deep nesting
+        return self.db.query(database_models.StockAssignment)\
             .options(
                 selectinload(database_models.StockAssignment.customer),
-                selectinload(database_models.StockAssignment.item)
+                selectinload(database_models.StockAssignment.item),
+                selectinload(database_models.StockAssignment.sales_rate)
+                # Don't load sales_rate.customer or sales_rate.item
             )\
             .all()
-        
-        # Add names
-        for assignment in assignments:
-            assignment.customer_name = assignment.customer.name if assignment.customer else None
-            assignment.item_name = assignment.item.name if assignment.item else None
-        
-        return assignments
     
     def get_by_id(self, assignment_id: int):
         assignment = self.db.query(database_models.StockAssignment)\

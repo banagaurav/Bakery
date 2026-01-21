@@ -58,12 +58,13 @@ class StockAssignment(Base):
     item_id = Column(Integer, ForeignKey("items.id"), nullable=False)
     quantity = Column(Integer, nullable=False)
     assignment_date = Column(Date, nullable=False)
-    rate = Column(Float, nullable=False)  # Rate at assignment time
+    sales_rate_id = Column(Integer, ForeignKey("sales_rates.id"), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     
     # Relationships
     customer = relationship("User", foreign_keys=[customer_id])
     item = relationship("Item")
+    sales_rate = relationship("SalesRate", foreign_keys=[sales_rate_id])
 
 # Production Table
 class Production(Base):
