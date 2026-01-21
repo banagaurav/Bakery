@@ -1,4 +1,4 @@
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, computed_field
 from typing import Optional, List
 from datetime import date, datetime
 import enum
@@ -104,6 +104,18 @@ class StockAssignment(StockAssignmentBase):
     customer: Optional[User] = None  # ADDED
     item: Optional[Item] = None      # ADDED
     sales_rate: Optional[SalesRateNonNested] = None
+    # Computed field
+    @computed_field
+    @property
+    def total_price(self) -> float:
+        if self.sales_rate and hasattr(self, 'quantity'):
+            return self.quantity * self.sales_rate.rate
+        return 0.0
+    
+    @computed_field
+    @property
+    def rate(self) -> Optional[float]:
+        return self.sales_rate.rate if self.sales_rate else None
 
 
 # ========== Production Schemas ==========
