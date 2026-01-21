@@ -1,7 +1,8 @@
+from datetime import datetime, date
 from typing import Optional
-from datetime import datetime 
-from sqlalchemy import and_, or_ 
+from fastapi import HTTPException, status
 from sqlalchemy.orm import Session, selectinload
+from sqlalchemy import and_, or_
 import database_models
 from models import SalesRateCreate, SalesRateUpdate
 
@@ -10,25 +11,144 @@ class SalesRateService:
         self.db = db
     
     def get_all(self):
-        rates = self.db.query(database_models.SalesRate)\
-            .filter(database_models.SalesRate.is_active==True)\
+        return self.db.query(database_models.SalesRate)\
             .options(
                 selectinload(database_models.SalesRate.customer),
                 selectinload(database_models.SalesRate.item)
             )\
             .all()
-        
-        # Add names to each rate object
-        for rate in rates:
-            rate.customer_name = rate.customer.name if rate.customer else None
-            rate.item_name = rate.item.name if rate.item else None
-        
-        return rates
     
-    def get_active_rate_for_customer_item(self, customer_id: int, item_id: int) -> Optional[database_models.SalesRate]:
-        """Get the currently active sales rate for a customer-item pair"""
-        from sqlalchemy import and_
+    def get_by_id(self, rate_id: int):
+        return self.db.query(database_models.SalesRate)\
+            .options(
+                selectinload(database_models.SalesRate.customer),
+                selectinload(database_models.SalesRate.item)
+            )\
+            .filter(database_models.SalesRate.id == rate_id)\
+            .first()
+    
+    def create(self, rate_data: SalesRateCreate):
+        # Rule 1: If creating a new active rate, deactivate previous active rates
+        if rate_data.is_active:
+            self._deactivate_previous_rates(
+                rate_data.customer_id, 
+                rate_data.item_id,
+                rate_data.effective_from
+            )
         
+        # Rule 2: If effective_to is not provided, set it to None (ongoing)
+        # This is already handled by the schema (Optional[date] = None)
+        
+        rate = database_models.SalesRate(**rate_data.model_dump())
+        self.db.add(rate)
+        self.db.commit()
+        self.db.refresh(rate)
+        
+        # Load relationships for response
+        rate = self.get_by_id(rate.id)
+        return rate
+    
+    def update(self, rate_id: int, rate_data: SalesRateUpdate):
+        rate = self.get_by_id(rate_id)
+        if not rate:
+            return None
+        
+        update_data = rate_data.model_dump(exclude_unset=True)
+        
+        # Rule 1: If setting is_active to False, set effective_to to today
+        if 'is_active' in update_data and update_data['is_active'] is False:
+            update_data['effective_to'] = datetime.now().date()
+        
+        # Rule 2: If setting is_active to True from False
+        elif 'is_active' in update_data and update_data['is_active'] is True:
+            # Check if there's already an active rate for this customer-item
+            existing_active = self._get_active_rate_for_customer_item(
+                rate.customer_id, 
+                rate.item_id
+            )
+            
+            # If there's another active rate, deactivate it first
+            if existing_active and existing_active.id != rate_id:
+                existing_active.is_active = False
+                existing_active.effective_to = datetime.now().date()
+                self.db.add(existing_active)
+        
+        # Rule 3: If effective_from is being updated on an active rate
+        if 'effective_from' in update_data and rate.is_active:
+            # Deactivate previous rates from the new effective_from date
+            self._deactivate_previous_rates(
+                rate.customer_id,
+                rate.item_id,
+                update_data['effective_from']
+            )
+        
+        # Apply updates
+        for field, value in update_data.items():
+            setattr(rate, field, value)
+        
+        self.db.commit()
+        self.db.refresh(rate)
+        
+        # Reload with relationships
+        rate = self.get_by_id(rate_id)
+        return rate
+    
+    def delete(self, rate_id: int):
+        rate = self.get_by_id(rate_id)
+        if not rate:
+            return False
+        
+        # If deleting an active rate, check if we need to reactivate a previous rate
+        if rate.is_active:
+            # Find the most recent inactive rate before this one
+            previous_rate = self.db.query(database_models.SalesRate)\
+                .filter(
+                    and_(
+                        database_models.SalesRate.customer_id == rate.customer_id,
+                        database_models.SalesRate.item_id == rate.item_id,
+                        database_models.SalesRate.id != rate_id,
+                        database_models.SalesRate.is_active == False
+                    )
+                )\
+                .order_by(database_models.SalesRate.effective_from.desc())\
+                .first()
+            
+            if previous_rate:
+                # Reactivate the previous rate
+                previous_rate.is_active = True
+                previous_rate.effective_to = None  # Remove end date
+                self.db.add(previous_rate)
+        
+        self.db.delete(rate)
+        self.db.commit()
+        return True
+    
+    # Helper methods
+    def _deactivate_previous_rates(self, customer_id: int, item_id: int, effective_from: date):
+        """Deactivate any active rates that overlap with the new effective_from date"""
+        previous_active_rates = self.db.query(database_models.SalesRate)\
+            .filter(
+                and_(
+                    database_models.SalesRate.customer_id == customer_id,
+                    database_models.SalesRate.item_id == item_id,
+                    database_models.SalesRate.is_active == True,
+                    database_models.SalesRate.effective_from <= effective_from,
+                    or_(
+                        database_models.SalesRate.effective_to.is_(None),
+                        database_models.SalesRate.effective_to >= effective_from
+                    )
+                )
+            )\
+            .all()
+        
+        for prev_rate in previous_active_rates:
+            prev_rate.is_active = False
+            # Set effective_to to one day before the new rate starts
+            prev_rate.effective_to = effective_from
+            self.db.add(prev_rate)
+    
+    def _get_active_rate_for_customer_item(self, customer_id: int, item_id: int):
+        """Get currently active rate for customer-item pair"""
         return self.db.query(database_models.SalesRate)\
             .filter(
                 and_(
@@ -44,84 +164,19 @@ class SalesRateService:
             )\
             .first()
     
-    def get_by_id(self, rate_id: int):
-        rate = self.db.query(database_models.SalesRate)\
-            .options(
-                selectinload(database_models.SalesRate.customer),
-                selectinload(database_models.SalesRate.item)
-            )\
-            .filter(database_models.SalesRate.id == rate_id)\
-            .first()
-        
-        if rate:
-            # Add names
-            rate.customer_name = rate.customer.name if rate.customer else None
-            rate.item_name = rate.item.name if rate.item else None
-        
-        return rate
-    
-    def get_with_relations(self, rate_id: int):
-        """Get sales rate with full customer and item objects"""
+    def get_active_rate_for_date(self, customer_id: int, item_id: int, target_date: date):
+        """Get active rate for a specific date"""
         return self.db.query(database_models.SalesRate)\
-            .options(
-                selectinload(database_models.SalesRate.customer),
-                selectinload(database_models.SalesRate.item)
+            .filter(
+                and_(
+                    database_models.SalesRate.customer_id == customer_id,
+                    database_models.SalesRate.item_id == item_id,
+                    database_models.SalesRate.is_active == True,
+                    database_models.SalesRate.effective_from <= target_date,
+                    or_(
+                        database_models.SalesRate.effective_to.is_(None),
+                        database_models.SalesRate.effective_to >= target_date
+                    )
+                )
             )\
-            .filter(database_models.SalesRate.id == rate_id)\
             .first()
-    
-    def create(self, rate_data: SalesRateCreate):
-        rate = database_models.SalesRate(**rate_data.model_dump())
-        self.db.add(rate)
-        self.db.commit()
-        self.db.refresh(rate)
-        return rate
-    
-    def update(self, rate_id: int, rate_data: SalesRateUpdate):
-        rate = self.get_by_id(rate_id)
-        if not rate:
-            return None
-        
-        update_data = rate_data.model_dump(exclude_unset=True)
-        for field, value in update_data.items():
-            setattr(rate, field, value)
-        
-        self.db.commit()
-        self.db.refresh(rate)
-        return rate
-    
-    def delete(self, rate_id: int):
-        rate = self.db.query(database_models.SalesRate)\
-            .filter(database_models.SalesRate.id == rate_id)\
-            .first()
-        
-        if not rate:
-            return False
-        
-        self.db.delete(rate)
-        self.db.commit()
-        return True
-    
-    def get_by_customer(self, customer_id: int):
-        """Get all sales rates for a specific customer"""
-        rates = self.db.query(database_models.SalesRate)\
-            .options(selectinload(database_models.SalesRate.item))\
-            .filter(database_models.SalesRate.customer_id == customer_id)\
-            .all()
-        
-        for rate in rates:
-            rate.item_name = rate.item.name if rate.item else None
-        
-        return rates
-    
-    def get_by_item(self, item_id: int):
-        """Get all sales rates for a specific item"""
-        rates = self.db.query(database_models.SalesRate)\
-            .options(selectinload(database_models.SalesRate.customer))\
-            .filter(database_models.SalesRate.item_id == item_id)\
-            .all()
-        
-        for rate in rates:
-            rate.customer_name = rate.customer.name if rate.customer else None
-        
-        return rates

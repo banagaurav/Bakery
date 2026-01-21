@@ -1,4 +1,4 @@
-from pydantic import BaseModel, ConfigDict, computed_field
+from pydantic import BaseModel, ConfigDict, computed_field,field_validator, model_validator
 from typing import Optional, List
 from datetime import date, datetime
 import enum
@@ -57,7 +57,11 @@ class SalesRateBase(BaseModel):
     is_active: bool = True
 
 class SalesRateCreate(SalesRateBase):
-    pass
+    @model_validator(mode='after')
+    def validate_effective_dates(self):
+        if self.effective_to and self.effective_to < self.effective_from:
+            raise ValueError("effective_to must be after effective_from")
+        return self
 
 class SalesRateUpdate(BaseModel):
     rate: Optional[float] = None
