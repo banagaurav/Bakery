@@ -1,6 +1,7 @@
-from sqlalchemy.orm import Session
-from datetime import date
+from sqlalchemy.orm import Session, selectinload
+from fastapi import HTTPException, status
 import database_models
+from typing import Optional
 from models import WorkingDayCreate, WorkingDayUpdate
 
 class WorkingDayService:
@@ -8,29 +9,40 @@ class WorkingDayService:
         self.db = db
     
     def get_all(self):
-        return self.db.query(database_models.WorkingDay).all()
+        return self.db.query(database_models.WorkingDay)\
+            .options(selectinload(database_models.WorkingDay.created_by_user))\
+            .all()
     
     def get_by_id(self, day_id: int):
         return self.db.query(database_models.WorkingDay)\
+            .options(selectinload(database_models.WorkingDay.created_by_user))\
             .filter(database_models.WorkingDay.id == day_id)\
             .first()
     
-    def get_by_date(self, day_date: date):
-        """Get working day by specific date"""
-        return self.db.query(database_models.WorkingDay)\
-            .filter(database_models.WorkingDay.date == day_date)\
+    def create(self, day_data: WorkingDayCreate, created_by_user_id: Optional[int] = None):
+        # Check if working day already exists for this date
+        existing_day = self.db.query(database_models.WorkingDay)\
+            .filter(database_models.WorkingDay.date == day_data.date)\
             .first()
-    
-    def create(self, day_data: WorkingDayCreate):
-        # Check if date already exists
-        existing = self.get_by_date(day_data.date)
-        if existing:
-            return None  # Or raise exception
         
-        day = database_models.WorkingDay(**day_data.model_dump())
+        if existing_day:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Working day already exists for date {day_data.date}"
+            )
+        
+        # Set created_by if provided
+        day_dict = day_data.model_dump()
+        if created_by_user_id:
+            day_dict['created_by'] = created_by_user_id
+        
+        day = database_models.WorkingDay(**day_dict)
         self.db.add(day)
         self.db.commit()
         self.db.refresh(day)
+        
+        # Load relationships for response
+        day = self.get_by_id(day.id)
         return day
     
     def update(self, day_id: int, day_data: WorkingDayUpdate):
@@ -54,20 +66,3 @@ class WorkingDayService:
         self.db.delete(day)
         self.db.commit()
         return True
-    
-    def get_open_days(self):
-        """Get all open working days"""
-        return self.db.query(database_models.WorkingDay)\
-            .filter(database_models.WorkingDay.status == "open")\
-            .all()
-    
-    def get_closed_days(self):
-        """Get all closed working days"""
-        return self.db.query(database_models.WorkingDay)\
-            .filter(database_models.WorkingDay.status == "close")\
-            .all()
-    
-    def is_working_day(self, day_date: date):
-        """Check if a specific date is a working day"""
-        day = self.get_by_date(day_date)
-        return day.is_working if day else False

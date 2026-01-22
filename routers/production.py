@@ -1,8 +1,9 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-from dependencies import get_db
+from dependencies import get_db, get_current_user
 from services.production_service import ProductionService
 from models import Production, ProductionCreate, ProductionUpdate
+from database_models import User
 
 router = APIRouter(prefix="/production", tags=["production"])
 
@@ -20,12 +21,21 @@ def get_production_record(production_id: int, db: Session = Depends(get_db)):
     return production
 
 @router.post("/", response_model=Production, status_code=status.HTTP_201_CREATED)
-def create_production_record(production: ProductionCreate, db: Session = Depends(get_db)):
+def create_production_record(
+    production: ProductionCreate, 
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)  # ADD this
+):
     service = ProductionService(db)
-    return service.create(production)
+    # Pass the current user's ID as created_by
+    return service.create(production, created_by_user_id=current_user.id)
 
 @router.put("/{production_id}", response_model=Production)
-def update_production_record(production_id: int, production: ProductionUpdate, db: Session = Depends(get_db)):
+def update_production_record(
+    production_id: int, 
+    production: ProductionUpdate, 
+    db: Session = Depends(get_db)
+):
     service = ProductionService(db)
     updated_production = service.update(production_id, production)
     if not updated_production:

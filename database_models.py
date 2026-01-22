@@ -27,10 +27,15 @@ class User(Base):
 
 # Items Table
 class Item(Base):
-    __tablename__ = "items"  # Changed table name
+    __tablename__ = "items"
+    
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String(100), nullable=False, unique=True)
+    created_by = Column(Integer, ForeignKey("users.id"), nullable=True) 
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+    
+    # Relationships
+    created_by_user = relationship("User", foreign_keys=[created_by])
 
 # Sales Rates Table
 class SalesRate(Base):
@@ -43,14 +48,16 @@ class SalesRate(Base):
     effective_from = Column(Date, nullable=False)
     effective_to = Column(Date, nullable=True)
     is_active = Column(Boolean, default=True)
+    created_by = Column(Integer, ForeignKey("users.id"), nullable=True)
+    updated_by = Column(Integer, ForeignKey("users.id"), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
-    updated_at = Column(DateTime(timezone=True), onupdate=func.now())  # NEW
-    updated_by = Column(Integer, ForeignKey("users.id"), nullable=True)  # NEW
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
     
     # Relationships
     customer = relationship("User", foreign_keys=[customer_id])
     item = relationship("Item")
-    updated_by_user = relationship("User", foreign_keys=[updated_by]) 
+    created_by_user = relationship("User", foreign_keys=[created_by])
+    updated_by_user = relationship("User", foreign_keys=[updated_by])
 
 # Stock Assignments Table
 class StockAssignment(Base):
@@ -62,12 +69,14 @@ class StockAssignment(Base):
     quantity = Column(Integer, nullable=False)
     assignment_date = Column(Date, nullable=False)
     sales_rate_id = Column(Integer, ForeignKey("sales_rates.id"), nullable=True)
+    created_by = Column(Integer, ForeignKey("users.id"), nullable=True) 
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     
     # Relationships
     customer = relationship("User", foreign_keys=[customer_id])
     item = relationship("Item")
     sales_rate = relationship("SalesRate", foreign_keys=[sales_rate_id])
+    created_by_user = relationship("User", foreign_keys=[created_by]) 
 
 # Production Table
 class Production(Base):
@@ -78,14 +87,12 @@ class Production(Base):
     quantity = Column(Integer, nullable=False)
     production_date = Column(Date, nullable=False)
     note = Column(String(500), nullable=True)
+    created_by = Column(Integer, ForeignKey("users.id"), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     
     # Relationship
     item = relationship("Item")
-
-    # @hybrid_property
-    # def item_name(self):
-    #     return self.item.name if self.item else None
+    created_by_user = relationship("User", foreign_keys=[created_by]) 
 
 # Working Days Table
 class WorkingDay(Base):
@@ -95,4 +102,8 @@ class WorkingDay(Base):
     status = Column(Enum(WorkingDayStatus), nullable=False, default=WorkingDayStatus.OPEN)
     is_working = Column(Boolean, default=True)
     date = Column(Date, nullable=False, unique=True)
+    created_by = Column(Integer, ForeignKey("users.id"), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+    
+    # Relationships
+    created_by_user = relationship("User", foreign_keys=[created_by])

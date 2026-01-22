@@ -1,8 +1,9 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-from dependencies import get_db
+from dependencies import get_db, get_current_user
 from services.working_day_service import WorkingDayService
 from models import WorkingDay, WorkingDayCreate, WorkingDayUpdate
+from database_models import User
 
 router = APIRouter(prefix="/working-days", tags=["working-days"])
 
@@ -20,9 +21,14 @@ def get_working_day(day_id: int, db: Session = Depends(get_db)):
     return day
 
 @router.post("/", response_model=WorkingDay, status_code=status.HTTP_201_CREATED)
-def create_working_day(day: WorkingDayCreate, db: Session = Depends(get_db)):
+def create_working_day(
+    day: WorkingDayCreate, 
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)  # ADD this
+):
     service = WorkingDayService(db)
-    return service.create(day)
+    # Pass the current user's ID as created_by
+    return service.create(day, created_by_user_id=current_user.id)
 
 @router.put("/{day_id}", response_model=WorkingDay)
 def update_working_day(day_id: int, day: WorkingDayUpdate, db: Session = Depends(get_db)):

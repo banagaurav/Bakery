@@ -15,7 +15,8 @@ class SalesRateService:
             .options(
                 selectinload(database_models.SalesRate.customer),
                 selectinload(database_models.SalesRate.item),
-                selectinload(database_models.SalesRate.updated_by_user)  # ADDED
+                selectinload(database_models.SalesRate.created_by_user),
+                selectinload(database_models.SalesRate.updated_by_user)
             )\
             .all()
     
@@ -24,12 +25,13 @@ class SalesRateService:
             .options(
                 selectinload(database_models.SalesRate.customer),
                 selectinload(database_models.SalesRate.item),
-                selectinload(database_models.SalesRate.updated_by_user)  # ADDED
+                selectinload(database_models.SalesRate.created_by_user),
+                selectinload(database_models.SalesRate.updated_by_user)
             )\
             .filter(database_models.SalesRate.id == rate_id)\
             .first()
     
-    def create(self, rate_data: SalesRateCreate, updated_by_user_id: Optional[int] = None):
+    def create(self, rate_data: SalesRateCreate, created_by_user_id: Optional[int] = None, updated_by_user_id: Optional[int] = None):
         # Rule 1: If creating a new active rate, deactivate previous active rates
         if rate_data.is_active:
             self._deactivate_previous_rates(
@@ -39,8 +41,10 @@ class SalesRateService:
                 updated_by_user_id  # Pass who's making the change
             )
         
-        # Set updated_by if provided
+        # Set created_by and updated_by if provided
         rate_dict = rate_data.model_dump()
+        if created_by_user_id:
+            rate_dict['created_by'] = created_by_user_id
         if updated_by_user_id:
             rate_dict['updated_by'] = updated_by_user_id
         
@@ -180,7 +184,10 @@ class SalesRateService:
     def get_active_rate_for_date(self, customer_id: int, item_id: int, target_date: date):
         """Get active rate for a specific date"""
         return self.db.query(database_models.SalesRate)\
-            .options(selectinload(database_models.SalesRate.updated_by_user))\
+            .options(
+                selectinload(database_models.SalesRate.created_by_user),
+                selectinload(database_models.SalesRate.updated_by_user)
+            )\
             .filter(
                 and_(
                     database_models.SalesRate.customer_id == customer_id,

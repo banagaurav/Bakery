@@ -1,28 +1,19 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Query
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-from datetime import date
-from dependencies import get_db, get_current_user, require_admin, require_salesman_or_admin
+from dependencies import get_db, get_current_user  # ADD get_current_user
 from services.sales_rate_service import SalesRateService
-from models import SalesRate, SalesRateCreate, SalesRateUpdate, User
+from models import SalesRate, SalesRateCreate, SalesRateUpdate
+from database_models import User  # ADD this import
 
 router = APIRouter(prefix="/sales-rates", tags=["sales-rates"])
 
 @router.get("/", response_model=list[SalesRate])
-def get_sales_rates(
-    db: Session = Depends(get_db),
-    current_user: User = Depends(require_salesman_or_admin)
-):
-    """Get all sales rates"""
+def get_sales_rates(db: Session = Depends(get_db)):
     service = SalesRateService(db)
     return service.get_all()
 
 @router.get("/{rate_id}", response_model=SalesRate)
-def get_sales_rate(
-    rate_id: int,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(require_salesman_or_admin)
-):
-    """Get a specific sales rate by ID"""
+def get_sales_rate(rate_id: int, db: Session = Depends(get_db)):
     service = SalesRateService(db)
     rate = service.get_by_id(rate_id)
     if not rate:
@@ -31,25 +22,22 @@ def get_sales_rate(
 
 @router.post("/", response_model=SalesRate, status_code=status.HTTP_201_CREATED)
 def create_sales_rate(
-    rate: SalesRateCreate,
+    rate: SalesRateCreate, 
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin)
+    current_user: User = Depends(get_current_user)  # ADD this
 ):
-    """Create a new sales rate"""
     service = SalesRateService(db)
-    # Match your service method signature - use updated_by_user_id
-    return service.create(rate, updated_by_user_id=current_user.id)
+    # Pass the current user's ID as both created_by and updated_by
+    return service.create(rate, created_by_user_id=current_user.id, updated_by_user_id=current_user.id)
 
 @router.put("/{rate_id}", response_model=SalesRate)
 def update_sales_rate(
-    rate_id: int,
-    rate: SalesRateUpdate,
+    rate_id: int, 
+    rate: SalesRateUpdate, 
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin)
+    current_user: User = Depends(get_current_user)  # ADD this
 ):
-    """Update a sales rate"""
     service = SalesRateService(db)
-    # Match your service method signature - use updated_by_user_id
     updated_rate = service.update(rate_id, rate, updated_by_user_id=current_user.id)
     if not updated_rate:
         raise HTTPException(status_code=404, detail="Sales rate not found")
@@ -57,12 +45,10 @@ def update_sales_rate(
 
 @router.delete("/{rate_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_sales_rate(
-    rate_id: int,
+    rate_id: int, 
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin)
+    current_user: User = Depends(get_current_user)  # ADD this
 ):
-    """Delete a sales rate"""
     service = SalesRateService(db)
-    # Match your service method signature - use updated_by_user_id
     if not service.delete(rate_id, updated_by_user_id=current_user.id):
         raise HTTPException(status_code=404, detail="Sales rate not found")

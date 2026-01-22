@@ -34,6 +34,7 @@ class User(UserBase):
 # ========== Item Schemas ==========
 class ItemBase(BaseModel):
     name: str
+    created_by: Optional[int] = None
 
 class ItemCreate(ItemBase):
     pass
@@ -46,6 +47,7 @@ class Item(ItemBase):
     
     id: int
     created_at: datetime
+    created_by_user: Optional[User] = None
 
 # ========== Sales Rate Schemas ==========
 class SalesRateBase(BaseModel):
@@ -55,7 +57,8 @@ class SalesRateBase(BaseModel):
     effective_from: date
     effective_to: Optional[date] = None
     is_active: bool = True
-    updated_by: Optional[int] = None 
+    created_by: Optional[int] = None
+    updated_by: Optional[int] = None
 
 class SalesRateCreate(SalesRateBase):
     @model_validator(mode='after')
@@ -75,11 +78,12 @@ class SalesRate(SalesRateBase):
     id: int
     created_at: datetime
     updated_at: Optional[datetime] = None
-    customer: Optional[User] = None  # ADDED
-    item: Optional[Item] = None      # ADDED
-    updated_by_user: Optional[User] = None  # ADDED
+    customer: Optional[User] = None
+    item: Optional[Item] = None
+    created_by_user: Optional[User] = None
+    updated_by_user: Optional[User] = None
 
-class SalesRateNonNested(BaseModel): #for stockAssignment 
+class SalesRateNonNested(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     
     id: int
@@ -87,9 +91,10 @@ class SalesRateNonNested(BaseModel): #for stockAssignment
     effective_from: date
     effective_to: Optional[date] = None
     is_active: bool
+    created_by: Optional[int] = None
+    updated_by: Optional[int] = None
     created_at: datetime
-    updated_at: Optional[datetime] = None  # ADDED
-    updated_by: Optional[int] = None  # ADDED
+    updated_at: Optional[datetime] = None
 
 # ========== Stock Assignment Schemas ==========
 class StockAssignmentBase(BaseModel):
@@ -97,6 +102,7 @@ class StockAssignmentBase(BaseModel):
     item_id: int
     quantity: int
     assignment_date: date
+    created_by: Optional[int] = None 
 
 class StockAssignmentCreate(StockAssignmentBase):
     sales_rate_id: Optional[int] = None 
@@ -110,9 +116,10 @@ class StockAssignment(StockAssignmentBase):
     
     id: int
     created_at: datetime
-    customer: Optional[User] = None  # ADDED
-    item: Optional[Item] = None      # ADDED
+    customer: Optional[User] = None
+    item: Optional[Item] = None 
     sales_rate: Optional[SalesRateNonNested] = None
+    created_by_user: Optional[User] = None
     # Computed field
     @computed_field
     @property
@@ -133,6 +140,7 @@ class ProductionBase(BaseModel):
     quantity: int
     production_date: date
     note: Optional[str] = None
+    created_by: Optional[int] = None 
 
 class ProductionCreate(ProductionBase):
     pass
@@ -147,13 +155,15 @@ class Production(ProductionBase):
     
     id: int
     created_at: datetime
-    item: Optional[Item] = None  # Add this
+    item: Optional[Item] = None
+    created_by_user: Optional[User] = None 
 
 # ========== Working Day Schemas ==========
 class WorkingDayBase(BaseModel):
     status: WorkingDayStatus = WorkingDayStatus.OPEN
     is_working: bool = True
     date: date
+    created_by: Optional[int] = None  # ADDED
 
 class WorkingDayCreate(WorkingDayBase):
     pass
@@ -161,12 +171,14 @@ class WorkingDayCreate(WorkingDayBase):
 class WorkingDayUpdate(BaseModel):
     status: Optional[WorkingDayStatus] = None
     is_working: Optional[bool] = None
+    # Note: created_by shouldn't be in update, only in create
 
 class WorkingDay(WorkingDayBase):
     model_config = ConfigDict(from_attributes=True)
     
     id: int
     created_at: datetime
+    created_by_user: Optional[User] = None  # ADDED
 
 # ========== Response with Relationships ==========
 class UserWithRelations(User):
