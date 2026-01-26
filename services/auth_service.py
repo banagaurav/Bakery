@@ -1,6 +1,6 @@
 # services/auth_service.py
 from datetime import datetime, timedelta
-from typing import Optional
+from typing import Optional, List
 from jose import JWTError, jwt
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session

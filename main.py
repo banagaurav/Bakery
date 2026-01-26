@@ -1,4 +1,6 @@
+# main.py
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from database import engine
 import database_models
 
@@ -15,6 +17,22 @@ from routers.working_days import router as working_days_router
 database_models.Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="Bakery Management System")
+
+# Add CORS middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:3000",
+        "http://localhost:5173",
+        "http://localhost:8080",
+        "https://25b36840-3b33-456f-bd2b-ecb6afa44a82.lovableproject.com",
+        "https://*.ngrok-free.app",
+        "http://*.ngrok-free.app",
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # Include all routers
 app.include_router(auth_router)

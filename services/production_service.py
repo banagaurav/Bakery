@@ -1,3 +1,4 @@
+from typing import Optional
 from sqlalchemy.orm import Session, selectinload
 from fastapi import HTTPException, status
 import database_models

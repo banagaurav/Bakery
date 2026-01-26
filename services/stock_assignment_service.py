@@ -1,6 +1,6 @@
 from sqlalchemy.orm import Session, selectinload
 from fastapi import HTTPException, status
-from typing import Optional
+from typing import Optional, List
 import database_models
 from models import StockAssignmentCreate, StockAssignmentUpdate
 

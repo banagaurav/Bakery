@@ -1,7 +1,7 @@
 from sqlalchemy.orm import Session, selectinload
 import database_models
 from models import ItemCreate, ItemUpdate
-from typing import Optional
+from typing import Optional, List
 
 class ItemService:
     def __init__(self, db: Session):
