@@ -69,6 +69,7 @@ class StockAssignment(Base):
     quantity = Column(Integer, nullable=False)
     assignment_date = Column(Date, nullable=False)
     sales_rate_id = Column(Integer, ForeignKey("sales_rates.id"), nullable=True)
+    manual_rate = Column(Float, nullable=True)
     created_by = Column(Integer, ForeignKey("users.id"), nullable=True) 
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     

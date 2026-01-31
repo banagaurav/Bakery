@@ -6,18 +6,7 @@ from typing import Optional, List
 class ItemService:
     def __init__(self, db: Session):
         self.db = db
-    
-    def get_all(self):
-        return self.db.query(database_models.Item)\
-            .options(selectinload(database_models.Item.created_by_user)).all()
-    
-    def get_by_id(self, item_id: int):
-        return self.db.query(database_models.Item)\
-            .filter(database_models.Item.id == item_id)\
-            .first()
-    
-    
-    
+
     def create(self, item_data: ItemCreate, created_by_user_id: Optional[int] = None):
         # Set created_by if provided
         item_dict = item_data.model_dump()
@@ -32,6 +21,15 @@ class ItemService:
         # Load relationships for response
         item = self.get_by_id(item.id)
         return item
+    
+    def get_all(self):
+        return self.db.query(database_models.Item)\
+            .options(selectinload(database_models.Item.created_by_user)).all()
+    
+    def get_by_id(self, item_id: int):
+        return self.db.query(database_models.Item)\
+            .filter(database_models.Item.id == item_id)\
+            .first()
     
     def update(self, item_id: int, item_data: ItemUpdate):
         item = self.get_by_id(item_id)

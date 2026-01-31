@@ -102,35 +102,52 @@ class StockAssignmentBase(BaseModel):
     item_id: int
     quantity: int
     assignment_date: date
-    created_by: Optional[int] = None 
+    created_by: Optional[int] = None
 
 class StockAssignmentCreate(StockAssignmentBase):
     sales_rate_id: Optional[int] = None 
+    manual_rate: Optional[float] = None
+    
+    @model_validator(mode='after')
+    def validate_rate_or_sales_rate(self):
+        """Ensure not both sales_rate_id AND manual_rate are provided"""
+        if self.sales_rate_id is not None and self.manual_rate is not None:
+            raise ValueError("Cannot provide both sales_rate_id and manual_rate")
+        # Allow both to be NULL - system will look up automatically
+        return self
 
 class StockAssignmentUpdate(BaseModel):
     quantity: Optional[int] = None
-    rate: Optional[float] = None
+    sales_rate_id: Optional[int] = None
+    manual_rate: Optional[float] = None
 
 class StockAssignment(StockAssignmentBase):
     model_config = ConfigDict(from_attributes=True)
     
     id: int
+    sales_rate_id: Optional[int] = None
+    manual_rate: Optional[float] = None
     created_at: datetime
     customer: Optional[User] = None
     item: Optional[Item] = None 
     sales_rate: Optional[SalesRateNonNested] = None
     created_by_user: Optional[User] = None
+    
     # Computed field
     @computed_field
     @property
     def total_price(self) -> float:
-        if self.sales_rate and hasattr(self, 'quantity'):
-            return self.quantity * self.sales_rate.rate
+        rate = self.rate
+        if rate is not None and hasattr(self, 'quantity'):
+            return self.quantity * rate
         return 0.0
     
     @computed_field
     @property
     def rate(self) -> Optional[float]:
+        # Priority: manual_rate > sales_rate.rate
+        if self.manual_rate is not None:
+            return self.manual_rate
         return self.sales_rate.rate if self.sales_rate else None
 
 
